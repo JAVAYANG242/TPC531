@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台電發電數據監控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .main-top-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .left-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .top-pie-chart {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .top-pie-chart h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .top-pie-chart .chart-wrapper {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+        }
+        
+        .status.connecting { background: #3498db; color: white; }
+        .status.success { background: #27ae60; color: white; }
+        .status.error { background: #e74c3c; color: white; }
+        
+        .data-source {
+            margin-top: 10px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .data-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .data-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .data-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .thermal .data-value { color: #e74c3c; }
+        .renewable .data-value { color: #27ae60; }
+        .storage .data-value { color: #f39c12; }
+        .total .data-value { color: #3498db; }
+        
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .chart-container.trend-chart {
+            grid-column: auto;
+        }
+        
+        .chart-container.day-trend {
+            grid-column: 1;
+        }
+        
+        .chart-container.night-trend {
+            grid-column: 2;
+        }
+        
+        .time-selector {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .time-selector h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .time-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .time-btn {
+            padding: 8px 16px;
+            border: 2px solid #3498db;
+            background: white;
+            color: #3498db;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .time-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .time-btn:hover {
+            background: #2980b9;
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        .chart-container h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+        
+        .chart-canvas {
+            position: absolute !important;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .details {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        
+        .detail-section h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+        
+        .detail-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        @media (max-width: 768px) {
+            .main-top-section {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .top-pie-chart .chart-wrapper {
+                height: 250px;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+            }
+            
+            .chart-container.day-trend {
+                grid-column: 1;
+                grid-row: auto;
+            }
+            
+            .chart-container.night-trend {
+                grid-column: 1;
+                grid-row: auto;
+            }
+            
+            .chart-wrapper {
+                height: 280px;
+            }
+            
+            .data-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .detail-items {
+                grid-template-columns: 1fr;
+            }
+            
+            .time-buttons {
+                justify-content: center;
+            }
+            
+            .time-btn {
+                font-size: 0.9em;
+                padding: 6px 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .data-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .data-card {
+                padding: 15px;
+            }
+            
+            .data-value {
+                font-size: 1.5em;
+            }
+            
+            .top-pie-chart .chart-wrapper {
+                height: 220px;
+            }
+            
+            .chart-wrapper {
+                height: 250px;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .chart-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-top-section">
+            <div class="left-section">
+                <div class="header">
+                    <h1>台電發電數據監控</h1>
+                    <p>最後更新: <span id="lastUpdate">--</span></p>
+                    <div class="status connecting" id="status">準備連接...</div>
+                    <div class="data-source">數據來源：台電官網 (每10分鐘更新)</div>
+                </div>
+                
+                <div class="data-grid">
+                    <div class="data-card total">
+                        <h3>總發電量</h3>
+                        <div class="data-value" id="totalPower">-- MW</div>
+                    </div>
+                    
+                    <div class="data-card thermal">
+                        <h3>火力發電</h3>
+                        <div class="data-value" id="thermalPower">-- MW</div>
+                        <div id="thermalPercent">-- %</div>
+                    </div>
+                    
+                    <div class="data-card renewable">
+                        <h3>再生能源</h3>
+                        <div class="data-value" id="renewablePower">-- MW</div>
+                        <div id="renewablePercent">-- %</div>
+                    </div>
+                    
+                    <div class="data-card storage">
+                        <h3>儲能系統</h3>
+                        <div class="data-value" id="storagePower">-- MW</div>
+                        <div id="storagePercent">-- %</div>
+                        <div id="storageStatus">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="top-pie-chart">
+                <h3>發電結構占比</h3>
+                <div class="chart-wrapper">
+                    <canvas id="pieChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-container trend-chart day-trend">
+                <h3>日間火力發電占比 (06:00-18:00)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="dayChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-container trend-chart night-trend">
+                <h3>夜間火力發電占比 (18:00-06:00)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="nightChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="time-selector">
+            <h4>選擇時間區間</h4>
+            <div class="time-buttons">
+                <button class="time-btn active">最近一小時</button>
+                <button class="time-btn">最近一天</button>
+                <button class="time-btn">最近一周</button>
+                <button class="time-btn">最近一個月</button>
+            </div>
+        </div>
+
+        <div class="details">
+            <div class="detail-section">
+                <h4>火力發電明細</h4>
+                <div class="detail-items">
+                    <div class="detail-item">
+                        <span>核能:</span>
+                        <span id="nuclear">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>燃煤:</span>
+                        <span id="coal">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>燃氣:</span>
+                        <span id="lng">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>燃油:</span>
+                        <span id="oil">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>汽電共生:</span>
+                        <span id="cogen">-- MW</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h4>再生能源明細</h4>
+                <div class="detail-items">
+                    <div class="detail-item">
+                        <span>太陽能:</span>
+                        <span id="solar">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>風力:</span>
+                        <span id="wind">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>水力:</span>
+                        <span id="hydro">-- MW</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>其他再生:</span>
+                        <span id="otherRenewable">-- MW</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;">
+            <strong>無法獲取台電數據</strong><br>
+            建議安裝瀏覽器CORS擴展：<br>
+            • Chrome/Edge: 搜索 "CORS Unblock"<br>
+            • Firefox: 搜索 "CORS Everywhere"
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="historical_data.js"></script>
+</body>
+</html> 
